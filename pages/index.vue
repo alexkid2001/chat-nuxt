@@ -4,89 +4,116 @@
     justify-center
     align-center
   >
-    <v-flex
-      xs12
-      sm8
-      md6
-    >
-      <div class="text-center">
-        <logo />
-        <vuetify-logo />
-      </div>
-      <v-card>
-        <v-card-title class="headline">
-          Welcome to the Vuetify + Nuxt.js template
+    <v-flex xs12 sm8>
+      <v-card min-width="400">
+        <v-snackbar
+          v-model="snackbar"
+          :timeout="6000"
+          top>
+          {{ message }}
+          <v-btn
+            color="blue"
+            text
+            @click="snackbar = false"
+          >
+            Close
+          </v-btn>
+        </v-snackbar>
+        <v-card-title>
+          <h1>Nuxt chat</h1>
         </v-card-title>
         <v-card-text>
-          <p>Vuetify is a progressive Material Design component framework for Vue.js. It was designed to empower developers to create amazing applications.</p>
-          <p>
-            For more information on Vuetify, check out the <a
-              href="https://vuetifyjs.com"
-              target="_blank"
-            >
-              documentation
-            </a>.
-          </p>
-          <p>
-            If you have questions, please join the official <a
-              href="https://chat.vuetifyjs.com/"
-              target="_blank"
-              title="chat"
-            >
-              discord
-            </a>.
-          </p>
-          <p>
-            Find a bug? Report it on the github <a
-              href="https://github.com/vuetifyjs/vuetify/issues"
-              target="_blank"
-              title="contribute"
-            >
-              issue board
-            </a>.
-          </p>
-          <p>Thank you for developing with Vuetify and I look forward to bringing more exciting features in the future.</p>
-          <div class="text-xs-right">
-            <em><small>&mdash; John Leider</small></em>
-          </div>
-          <hr class="my-3">
-          <a
-            href="https://nuxtjs.org/"
-            target="_blank"
+          <v-form
+            ref="form"
+            v-model="valid"
+            lazy-validation
           >
-            Nuxt Documentation
-          </a>
-          <br>
-          <a
-            href="https://github.com/nuxt/nuxt.js"
-            target="_blank"
-          >
-            Nuxt GitHub
-          </a>
+            <v-text-field
+              v-model="name"
+              :counter="16"
+              :rules="nameRules"
+              label="Ваше имя"
+              required
+            />
+
+            <v-text-field
+              v-model="room"
+              :rules="roomRules"
+              label="Введите комнату"
+              required
+            />
+
+            <v-btn
+              :disabled="!valid"
+              color="primary"
+              class="mr-4"
+              @click="submit"
+            >
+              Войти
+            </v-btn>
+          </v-form>
         </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn
-            color="primary"
-            nuxt
-            to="/inspire"
-          >
-            Continue
-          </v-btn>
-        </v-card-actions>
       </v-card>
     </v-flex>
   </v-layout>
 </template>
 
 <script>
-import Logo from '~/components/Logo.vue'
-import VuetifyLogo from '~/components/VuetifyLogo.vue'
-
+import { mapMutations } from 'vuex'
 export default {
-  components: {
-    Logo,
-    VuetifyLogo
+  layout: 'empty',
+  head: () => ({
+    title: 'Welcom to NUXT chat'
+  }),
+  data: () => ({
+    valid: true,
+    name: '',
+    snackbar: false,
+    message: '',
+    nameRules: [
+      v => !!v || 'Name is required',
+      v => (v && v.length <= 16) || 'Name must be less than 10 characters'
+    ],
+    room: '',
+    roomRules: [
+      v => !!v || 'Введите комнату'
+    ]
+  }),
+  sockets: {
+    connect () {
+      console.log('socket connected')
+    }
+  },
+  mounted () {
+    const { message } = this.$route.query
+    if (message === 'noUser') {
+      this.message = 'Enter params'
+    } else if (message === 'leftChat') {
+      this.message = 'You are leave chat'
+    }
+
+    this.snackbar = !!this.message
+  },
+  methods: {
+    ...mapMutations(['setUser']),
+    submit () {
+      if (this.$refs.form.validate()) {
+        const user = {
+          name: this.name,
+          room: this.room
+        }
+
+        this.$socket.emit('userJoined', user, (data) => {
+          if (typeof data === 'string') {
+            console.error(data)
+          } else {
+            user.id = data.userId
+            this.setUser(user)
+            this.$router.push('/chat')
+          }
+        })
+      }
+    }
   }
 }
 </script>
